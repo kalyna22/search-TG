@@ -1,0 +1,45 @@
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import requests
+
+# Функция для обработки сообщений с ключевыми словами
+def search_keywords(update: Update, context: CallbackContext) -> None:
+    query = update.message.text
+    response = requests.get(f'https://www.googleapis.com/customsearch/v1?q={query}&key=YOUR_API_KEY&cx=YOUR_CX')
+    
+    if response.status_code == 200:
+        data = response.json()
+        results = data.get('items', [])
+        
+        if results:
+            reply_text = ""
+            for item in results[:3]:  # Показываем только первые 3 результата
+                title = item.get('title')
+                link = item.get('link')
+                snippet = item.get('snippet')
+                reply_text += f"*{title}*\n{snippet}\n[Ссылка]({link})\n\n"
+        else:
+            reply_text = "По вашему запросу ничего не найдено."
+    else:
+        reply_text = "Произошла ошибка при выполнении запроса."
+
+    update.message.reply_text(reply_text, parse_mode='Markdown')
+
+# Функция для команды /start
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Привет! Отправь мне ключевые слова, и я найду информацию по ним.')
+
+def main():
+    # Замените 'YOUR_TOKEN' на токен вашего бота
+    updater = Updater("YOUR_TOKEN")
+
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, search_keywords))
+
+    # Запуск бота
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
